@@ -30,8 +30,11 @@ public class HeroKnight : MonoBehaviour {
     private float m_delayToIdle = 0.0f; //Decides when to start idling
     private float m_rollDuration = 1.0f; //8.0f / 14.0f; // How long the roll lasts
     private float m_rollCurrentTime; // I think this is a timer to decide how long the roll lasts
-    public float attackSpeed = 0.25f;
     private bool isBlocking = false;
+
+    //Stats that can be changed by gameplay conditions
+    public float health = 100;
+    public float attackSpeed = 0.25f;
 
     // Use this for initialization
     void Start ()
@@ -71,7 +74,6 @@ public class HeroKnight : MonoBehaviour {
             m_animator.SetBool("Grounded", m_grounded);
         }
         
-
         //Check if character just started falling
         if (m_grounded && !m_groundSensor.State())
         {
@@ -79,16 +81,32 @@ public class HeroKnight : MonoBehaviour {
             m_animator.SetBool("Grounded", m_grounded);
         }
 
+        //Checks direction to see where the character shoiuld be facing
+        if (m_facingDirection == 1)
+        {
+            GetComponent<SpriteRenderer>().flipX = false;
+        } else if (m_facingDirection == -1)
+        {
+            GetComponent<SpriteRenderer>().flipX = true;
+        }
+
+
         // -- Handle input and movement --
         float inputX = Input.GetAxis("Horizontal");
 
         // Swap direction of sprite depending on walk direction
-        if (inputX > 0) {
-            GetComponent<SpriteRenderer>().flipX = false;
-            m_facingDirection = 1;
-        }  else if (inputX < 0) {
-            GetComponent<SpriteRenderer>().flipX = true;
-            m_facingDirection = -1;
+        if (inputX > 0)
+        {
+            if (m_grounded)
+            {
+                m_facingDirection = 1;
+            }
+        }  else if (inputX < 0)
+        {
+            if (m_grounded)
+            {
+                m_facingDirection = -1;
+            }
         }
 
         // Move
@@ -102,7 +120,19 @@ public class HeroKnight : MonoBehaviour {
         // -- Handle Animations --
         //Wall Slide
         m_isWallSliding = (m_wallSensorR1.State() && m_wallSensorR2.State()) || (m_wallSensorL1.State() && m_wallSensorL2.State());
-        m_animator.SetBool("WallSlide", m_isWallSliding);
+        if (m_wallSensorR1.State() && m_wallSensorR2.State())
+        {
+            m_facingDirection = 1;
+            m_animator.SetBool("WallSlide", m_isWallSliding);
+        } else if (m_wallSensorL1.State() && m_wallSensorL2.State())
+        {
+            m_facingDirection = -1;
+            m_animator.SetBool("WallSlide", m_isWallSliding);
+        } else
+        {
+            m_animator.SetBool("WallSlide", m_isWallSliding);
+        }
+        
         //FIX THIS TO FIX WEIRD ANIMATION ERROR WHEN CHANGING DIRECTION ON WALL
 
         //Death
@@ -112,7 +142,7 @@ public class HeroKnight : MonoBehaviour {
         //     m_animator.SetTrigger("Death");
         // }
         // This can be deactivated out of testing
-            
+
         //Hurt
         // else if (Input.GetKeyDown("q") && !m_rolling)
         //     m_animator.SetTrigger("Hurt");
@@ -133,7 +163,6 @@ public class HeroKnight : MonoBehaviour {
 
             // Call one of three attack animations "Attack1", "Attack2", "Attack3"
             m_animator.SetTrigger("Attack" + m_currentAttack);
-
             // Reset timer
             m_timeSinceAttack = 0.0f;
         }
@@ -162,17 +191,27 @@ public class HeroKnight : MonoBehaviour {
             
 
         //Jump
-        else if (Input.GetKeyDown("space") && m_grounded && !m_rolling && !isBlocking)
+        else if ((Input.GetKeyDown("space") && m_grounded && !m_rolling && !isBlocking) || (Input.GetKeyDown("space") && m_isWallSliding))
         {
-            m_animator.SetTrigger("Jump");
-            m_grounded = false;
-            m_animator.SetBool("Grounded", m_grounded);
-            m_body2d.velocity = new Vector2(m_body2d.velocity.x, m_jumpForce);
-            m_groundSensor.Disable(0.2f);
+            if (m_grounded)
+            {
+                m_animator.SetTrigger("Jump");
+                m_grounded = false;
+                m_animator.SetBool("Grounded", m_grounded);
+                m_body2d.velocity = new Vector2(m_body2d.velocity.x, m_jumpForce);
+                m_groundSensor.Disable(0.2f);
+
+            } else if (m_isWallSliding)
+            {
+                m_animator.SetTrigger("Jump");
+                m_grounded = false;
+                m_animator.SetBool("Grounded", m_grounded);
+                m_body2d.velocity = new Vector2((m_jumpForce * 2) * -m_facingDirection, m_jumpForce);
+            }
         }
 
         //Run
-        else if (Mathf.Abs(inputX) > Mathf.Epsilon && !isBlocking && !m_rolling)
+        else if (Mathf.Abs(inputX) > Mathf.Epsilon && !isBlocking && !m_rolling && m_grounded)
         {
             // Reset timer
             m_delayToIdle = 0.05f;
@@ -188,6 +227,31 @@ public class HeroKnight : MonoBehaviour {
                     m_animator.SetInteger("AnimState", 0);
         }
     }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.gameObject.tag == "Monster")
+        {
+            m_animator.SetTrigger("Hurt");
+            m_body2d.velocity = new Vector2(
+                (other.transform.position.x - transform.position.x) < 0 ? -0.5f : 0.5f ,
+                0
+            );
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // Animation Events
     // Called in slide animation.
