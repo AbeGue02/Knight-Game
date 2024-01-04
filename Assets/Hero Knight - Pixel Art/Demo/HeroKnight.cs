@@ -51,12 +51,20 @@ public class HeroKnight : MonoBehaviour {
     // Update is called once per frame
     void Update ()
     {
+
         // Increase timer that controls attack combo
         m_timeSinceAttack += Time.deltaTime;
         //The code does this to later check if is too late for doing the next attack in the sequence
 
+        //This needs fixing but I need to test health leve
+        //if (health <= 0)
+        //{
+        //    m_animator.SetBool("noBlood", m_noBlood);
+        //    m_animator.SetTrigger("Death");
+        //}
+
         // Increase timer that checks roll duration
-        if(m_rolling)
+        if (m_rolling)
             m_rollCurrentTime += Time.deltaTime;
         // I think the code does this to later check how long you've been rolling
 
@@ -233,21 +241,15 @@ public class HeroKnight : MonoBehaviour {
         if (other.gameObject.tag == "Monster")
         {
             m_animator.SetTrigger("Hurt");
-            m_body2d.velocity = new Vector2(
-                (other.transform.position.x - transform.position.x) < 0 ? -0.5f : 0.5f ,
-                0
-            );
+            health -= 10;
+        }
+
+        if (health <= 0)
+        {
+            m_animator.SetBool("noBlood", m_noBlood);
+            m_animator.SetTrigger("Death");
         }
     }
-
-
-
-
-
-
-
-
-
 
 
 
